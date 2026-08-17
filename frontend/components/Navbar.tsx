@@ -24,9 +24,6 @@ export default function Navbar({ activeTab, setActiveTab, apiStatus }: NavbarPro
               <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 via-green-300 to-teal-200 bg-clip-text text-transparent">
                 Re-Grow
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 font-semibold uppercase tracking-wider">
-                v2.0 Pro
-              </span>
             </div>
             <p className="text-xs text-slate-400 font-medium">Satellite Deforestation & Recovery Platform</p>
           </div>
