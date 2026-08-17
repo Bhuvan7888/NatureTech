@@ -17,6 +17,8 @@ interface NGOCardsProps {
 }
 
 export default function NGOCards({ ngos }: NGOCardsProps) {
+  if (!ngos || ngos.length === 0) return null;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
