@@ -259,7 +259,7 @@ export default function ImageUploader({
                   setSearchQuery(p.label.replace(/^[^\s]+\s*/, ''));
                   setLatitude(p.lat);
                   setLongitude(p.lon);
-                  setResolvedLocationName(`${p.label} (${p.lat}°, ${p.lon}°)`);
+                  setResolvedLocationName(p.label);
                 }}
                 className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-teal-500/60 hover:text-white transition shrink-0 font-medium"
               >
