@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Upload, Flame, Trees, Zap, Sliders, MapPin, CheckCircle, RefreshCw, Satellite, Search, Globe, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface ImageUploaderProps {
   onAnalyze: (formData: FormData) => void;
@@ -82,7 +83,8 @@ export default function ImageUploader({
     if (!q.trim()) return null;
     setIsSearchingLocation(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/live/geocode?query=${encodeURIComponent(q)}`);
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/live/geocode?query=${encodeURIComponent(q)}`);
       if (res.ok) {
         const data = await res.json();
         setLatitude(data.latitude);
@@ -105,7 +107,7 @@ export default function ImageUploader({
       let targetLat = latitude;
       let targetLon = longitude;
 
-      if (searchQuery.trim()) {
+      if (searchQuery.trim() && !resolvedLocationName) {
         const geoRes = await handleSearchLocation();
         if (geoRes) {
           targetLat = geoRes.lat;
@@ -117,7 +119,8 @@ export default function ImageUploader({
       fd.append('latitude', targetLat.toString());
       fd.append('longitude', targetLon.toString());
 
-      const res = await fetch('http://127.0.0.1:8000/api/live/fetch-satellite', {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/live/fetch-satellite`, {
         method: 'POST',
         body: fd,
       });
@@ -129,14 +132,19 @@ export default function ImageUploader({
           setAfterPreview(data.after_image);
           setSentinelDates({ before: data.before_date, after: data.after_date });
 
-          const fBefore = base64ToFile(data.before_image, 'sentinel_before.png');
-          const fAfter = base64ToFile(data.after_image, 'sentinel_after.png');
+          const fBefore = base64ToFile(data.before_image, 'sentinel_before.jpg');
+          const fAfter = base64ToFile(data.after_image, 'sentinel_after.jpg');
           setBeforeFile(fBefore);
           setAfterFile(fAfter);
+        } else {
+          onLoadSamples();
         }
+      } else {
+        onLoadSamples();
       }
     } catch (e) {
       console.error('Failed to fetch live Sentinel-2 satellite imagery:', e);
+      onLoadSamples();
     } finally {
       setIsFetchingSentinel(false);
     }
