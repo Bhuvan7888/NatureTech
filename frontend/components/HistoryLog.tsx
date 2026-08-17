@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { History, RefreshCw, Calendar, MapPin, DollarSign, PieChart } from 'lucide-react';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface HistoryItem {
   id: number;
@@ -20,7 +21,7 @@ export default function HistoryLog() {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/history');
+      const res = await fetch(`${getApiBaseUrl()}/api/history`);
       if (res.ok) {
         const data = await res.json();
         setHistory(data.history || []);

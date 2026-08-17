@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Upload, Flame, Trees, Zap, Sliders, MapPin, CheckCircle, RefreshCw, Satellite, Search, Globe } from 'lucide-react';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface ImageUploaderProps {
   onAnalyze: (formData: FormData) => void;
@@ -74,7 +75,8 @@ export default function ImageUploader({
     if (!searchQuery.trim()) return null;
     setIsSearchingLocation(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/live/geocode?query=${encodeURIComponent(searchQuery)}`);
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/live/geocode?query=${encodeURIComponent(searchQuery)}`);
       if (res.ok) {
         const data = await res.json();
         setLatitude(data.latitude);
@@ -109,7 +111,8 @@ export default function ImageUploader({
       fd.append('latitude', targetLat.toString());
       fd.append('longitude', targetLon.toString());
 
-      const res = await fetch('http://127.0.0.1:8000/api/live/fetch-satellite', {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/live/fetch-satellite`, {
         method: 'POST',
         body: fd,
       });

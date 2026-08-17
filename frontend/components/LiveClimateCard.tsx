@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Wind, Thermometer, Flame, Compass, ShieldCheck, RefreshCw } from 'lucide-react';
+import { getApiBaseUrl } from '@/utils/api';
 
 interface ClimateData {
   latitude: number;
@@ -25,7 +26,8 @@ export default function LiveClimateCard({ latitude, longitude }: LiveClimateCard
   const fetchClimate = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/live/climate?lat=${latitude}&lon=${longitude}`);
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/live/climate?lat=${latitude}&lon=${longitude}`);
       if (res.ok) {
         const data: ClimateData = await res.json();
         setClimate(data);

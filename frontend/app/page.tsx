@@ -11,6 +11,7 @@ import NGOCards from '@/components/NGOCards';
 import RegionsTable from '@/components/RegionsTable';
 import HistoryLog from '@/components/HistoryLog';
 import LiveClimateCard from '@/components/LiveClimateCard';
+import { getApiBaseUrl } from '@/utils/api';
 import { AlertCircle, CheckCircle, Trees } from 'lucide-react';
 
 interface AnalysisResult {
@@ -52,7 +53,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
-  const API_URL = 'http://127.0.0.1:8000';
+  const API_URL = getApiBaseUrl();
 
   // Check Backend API Health on mount
   useEffect(() => {
