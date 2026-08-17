@@ -88,15 +88,15 @@ def find_nearby_ngos(lat: float, lon: float, radius_km: float = None):
             })
             
         if not results:
-            print("Overpass returned zero results, using fallback.")
-            return get_fallback_ngos()
+            print(f"No Overpass NGO partners found within 50km of lat={lat}, lon={lon}.")
+            return []
             
         db.cache_ngos(lat, lon, results)
         return results
 
     except Exception as e:
-        print(f"Overpass API failed ({e}), using fallback.")
-        return get_fallback_ngos()
+        print(f"Overpass API query error ({e}).")
+        return []
 
 
 class TestNGOMatcher(unittest.TestCase):

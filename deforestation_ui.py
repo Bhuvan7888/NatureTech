@@ -205,22 +205,31 @@ def identify_barren_areas(before_path, after_path, image_shape, pixel_resolution
         
         # Areas that lost greenness between images
         greenness_decrease = np.maximum(0, before_green - after_green)
+        g_max = np.max(greenness_decrease)
+        g_norm = greenness_decrease / g_max if g_max > 0 else greenness_decrease
+
+        # Multi-spectral intensity change
+        if len(before_img.shape) == 3 and len(after_img.shape) == 3:
+            spectral_change = np.mean(np.abs(before_img.astype(float) - after_img.astype(float)), axis=2)
+        else:
+            spectral_change = np.abs(before_gray.astype(float) - after_gray.astype(float))
         
-        # Normalize and threshold
-        if np.max(greenness_decrease) > 0:
-            greenness_decrease = greenness_decrease / np.max(greenness_decrease)
+        s_max = np.max(spectral_change)
+        s_norm = spectral_change / s_max if s_max > 0 else spectral_change
+
+        # Combine greenness loss and spectral land-use change
+        combined_change = 0.5 * g_norm + 0.5 * s_norm
         
         # Use adaptive threshold
-        mean_decrease = np.mean(greenness_decrease)
-        std_decrease = max(np.std(greenness_decrease), 0.001)
+        mean_decrease = np.mean(combined_change)
+        std_decrease = max(np.std(combined_change), 0.001)
         threshold = mean_decrease + 1.0 * std_decrease
         
         # Create binary mask of potentially deforested areas
-        deforested_mask = greenness_decrease > threshold
+        deforested_mask = combined_change > threshold
         
         # Clean up with morphological operations
-        deforested_mask = binary_erosion(deforested_mask, disk(2))
-        deforested_mask = binary_dilation(deforested_mask, disk(4))
+        deforested_mask = binary_dilation(deforested_mask, disk(2))
         
         # Find connected components
         labeled_regions = label(deforested_mask)

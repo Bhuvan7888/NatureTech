@@ -82,8 +82,14 @@ export default function NGOCards({ ngos }: NGOCardsProps) {
 
       {/* NGO Cards Grid */}
       {filteredNgos.length === 0 ? (
-        <div className="text-center py-10 bg-slate-900/40 rounded-xl border border-slate-800 text-slate-400 text-xs">
-          No NGO partners found matching your search criteria.
+        <div className="text-center py-10 px-4 bg-slate-900/60 rounded-2xl border border-amber-500/30 text-slate-300 text-xs space-y-2 shadow-lg">
+          <div className="flex items-center justify-center space-x-2 text-amber-400 font-extrabold text-sm">
+            <Building2 className="w-5 h-5 text-amber-400" />
+            <span>No Registered Conservation NGOs Found Within 50km Radius</span>
+          </div>
+          <p className="text-slate-400 max-w-lg mx-auto leading-relaxed">
+            No registered forestry offices, environmental NGOs, or nature clubs were found on OpenStreetMap within 50km of these coordinates.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
