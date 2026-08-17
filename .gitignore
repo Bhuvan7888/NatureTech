@@ -1,0 +1,26 @@
+# Node & Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Python & Databases
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+regrow.db
+*.tif
+*.tiff
+
+# Environment & Temp
+.env
+.venv/
+venv/
+env/
+NatureTech-main/
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

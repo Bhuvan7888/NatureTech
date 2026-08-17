@@ -1,0 +1,32 @@
+[
+    {
+        "name": "Nature Conservation Foundation (NCF)",
+        "contact": "info@ncf-india.org",
+        "website": "https://www.ncf-india.org/",
+        "location": "Mysore, Karnataka & Western Ghats"
+    },
+    {
+        "name": "Applied Environmental Research Foundation (AERF)",
+        "contact": "info@aerfindia.org",
+        "website": "https://www.aerfindia.org/",
+        "location": "Pune, Maharashtra"
+    },
+    {
+        "name": "Ashoka Trust for Research in Ecology and the Environment (ATREE)",
+        "contact": "info@atree.org",
+        "website": "https://www.atree.org/",
+        "location": "Bangalore, Karnataka"
+    },
+    {
+        "name": "Foundation for Ecological Security (FES)",
+        "contact": "ed@fes.org.in",
+        "website": "https://fes.org.in/",
+        "location": "Anand, Gujarat"
+    },
+    {
+        "name": "Sadhana Forest",
+        "contact": "india@sadhanaforest.org",
+        "website": "https://sadhanaforest.org/",
+        "location": "Auroville, Tamil Nadu"
+    }
+]
