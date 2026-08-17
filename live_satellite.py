@@ -24,7 +24,7 @@ def geocode_location(query: str) -> Optional[Dict[str, Any]]:
             "format": "json",
             "limit": 1
         }
-        res = requests.get(NOMINATIM_URL, params=params, headers=HEADERS, timeout=5)
+        res = requests.get(NOMINATIM_URL, params=params, headers=HEADERS, timeout=4)
         if res.status_code == 200 and res.json():
             item = res.json()[0]
             return {
@@ -44,43 +44,65 @@ def image_to_base64(pil_img: Image.Image) -> str:
     encoded = base64.b64encode(img_bytes).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
-def fetch_stac_sentinel_image(lat: float, lon: float, date_range: str, max_cloud: int = 25) -> Tuple[Optional[str], Optional[str]]:
+def fetch_stac_sentinel_image(lat: float, lon: float, date_range: str, max_cloud: int = 50) -> Tuple[Optional[str], Optional[str]]:
     """
     Search STAC API for Sentinel-2 cloud-free satellite preview image.
     Returns (base64_data_uri, datetime_string).
     """
-    delta = 0.03  # ~3km bounding box
+    delta = 0.05  # ~5km bounding box
     bbox = [lon - delta, lat - delta, lon + delta, lat + delta]
     
-    payload = {
-        "collections": ["sentinel-2-l2a"],
-        "bbox": bbox,
-        "datetime": date_range,
-        "query": {
-            "eo:cloud_cover": {"lt": max_cloud}
+    payloads = [
+        # Strategy 1: Filter by cloud cover
+        {
+            "collections": ["sentinel-2-l2a"],
+            "bbox": bbox,
+            "datetime": date_range,
+            "query": {"eo:cloud_cover": {"lt": max_cloud}},
+            "limit": 5
         },
-        "limit": 5
-    }
+        # Strategy 2: Any cloud cover fallback
+        {
+            "collections": ["sentinel-2-l2a"],
+            "bbox": bbox,
+            "datetime": date_range,
+            "limit": 5
+        }
+    ]
 
-    try:
-        res = requests.post(STAC_API_URL, json=payload, headers=HEADERS, timeout=8)
-        if res.status_code == 200:
-            data = res.json()
-            features = data.get("features", [])
-            if features:
-                # Sort features by cloud cover ascending
-                features.sort(key=lambda x: x.get("properties", {}).get("eo:cloud_cover", 100))
-                best_item = features[0]
-                preview_url = best_item.get("assets", {}).get("rendered_preview", {}).get("href")
-                dt_str = best_item.get("properties", {}).get("datetime", "")[:10]
-                
-                if preview_url:
-                    img_res = requests.get(preview_url, headers=HEADERS, timeout=10)
-                    if img_res.status_code == 200:
-                        pil_img = Image.open(io.BytesIO(img_res.content)).convert("RGB")
-                        return image_to_base64(pil_img), dt_str
-    except Exception as e:
-        print(f"STAC Search error for lat={lat}, lon={lon}, date={date_range}: {e}")
+    for payload in payloads:
+        try:
+            res = requests.post(STAC_API_URL, json=payload, headers=HEADERS, timeout=4)
+            if res.status_code == 200:
+                data = res.json()
+                features = data.get("features", [])
+                if features:
+                    features.sort(key=lambda x: x.get("properties", {}).get("eo:cloud_cover", 100))
+                    best_item = features[0]
+                    item_id = best_item.get("id")
+                    dt_str = best_item.get("properties", {}).get("datetime", "")[:10]
+
+                    # Candidate preview URLs
+                    urls_to_try = []
+                    if "rendered_preview" in best_item.get("assets", {}):
+                        urls_to_try.append(best_item["assets"]["rendered_preview"].get("href"))
+                    if "thumbnail" in best_item.get("assets", {}):
+                        urls_to_try.append(best_item["assets"]["thumbnail"].get("href"))
+                    if item_id:
+                        urls_to_try.append(f"https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-2-l2a&item={item_id}&assets=visual&asset_bidx=visual%7C1%2C2%2C3&nodata=0&format=png")
+
+                    for preview_url in urls_to_try:
+                        if not preview_url:
+                            continue
+                        try:
+                            img_res = requests.get(preview_url, headers=HEADERS, timeout=5)
+                            if img_res.status_code == 200 and len(img_res.content) > 500:
+                                pil_img = Image.open(io.BytesIO(img_res.content)).convert("RGB")
+                                return image_to_base64(pil_img), dt_str
+                        except Exception:
+                            continue
+        except Exception as e:
+            print(f"STAC Search attempt failed for lat={lat}, lon={lon}: {e}")
 
     return None, None
 
@@ -88,11 +110,15 @@ def fetch_live_sentinel_pair(lat: float, lon: float) -> Dict[str, Any]:
     """
     Automatically search & fetch before (historic) and after (recent) Sentinel-2 satellite tiles.
     """
-    # 1. Fetch recent image (past 90 days)
-    after_b64, after_date = fetch_stac_sentinel_image(lat, lon, "2024-01-01/2026-08-17", max_cloud=30)
+    # 1. Fetch recent satellite image (past 1-2 years)
+    after_b64, after_date = fetch_stac_sentinel_image(lat, lon, "2024-01-01/2026-08-17", max_cloud=40)
+    if not after_b64:
+        after_b64, after_date = fetch_stac_sentinel_image(lat, lon, "2023-01-01/2026-08-17", max_cloud=80)
     
-    # 2. Fetch baseline historic image (prior period)
-    before_b64, before_date = fetch_stac_sentinel_image(lat, lon, "2022-01-01/2023-12-31", max_cloud=20)
+    # 2. Fetch baseline historic satellite image (prior period)
+    before_b64, before_date = fetch_stac_sentinel_image(lat, lon, "2020-01-01/2023-12-31", max_cloud=30)
+    if not before_b64:
+        before_b64, before_date = fetch_stac_sentinel_image(lat, lon, "2018-01-01/2023-12-31", max_cloud=60)
 
     # Fallback to sample images if STAC API is constrained or location is out of bounds
     base_dir = os.path.dirname(os.path.realpath(__file__))
@@ -102,12 +128,12 @@ def fetch_live_sentinel_pair(lat: float, lon: float) -> Dict[str, Any]:
     if not before_b64 and os.path.exists(sample_before_path):
         with open(sample_before_path, "rb") as f:
             before_b64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        before_date = "Baseline Archive"
+        before_date = "Baseline Archive (Sample)"
 
     if not after_b64 and os.path.exists(sample_after_path):
         with open(sample_after_path, "rb") as f:
             after_b64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        after_date = "Recent Satellite Imagery"
+        after_date = "Recent Imagery (Sample)"
 
     return {
         "success": True,
@@ -129,14 +155,13 @@ def fetch_live_climate(lat: float, lon: float) -> Dict[str, Any]:
             "longitude": lon,
             "current_weather": "true"
         }
-        res = requests.get(OPEN_METEO_URL, params=params, headers=HEADERS, timeout=5)
+        res = requests.get(OPEN_METEO_URL, params=params, headers=HEADERS, timeout=4)
         if res.status_code == 200:
             cw = res.json().get("current_weather", {})
             temp_c = cw.get("temperature", 25.0)
             wind_speed = cw.get("windspeed", 10.0)
             wind_dir = cw.get("winddirection", 180)
             
-            # Simple wildfire risk heuristic based on wind speed and temperature
             risk_score = "Moderate"
             if temp_c > 30.0 and wind_speed > 25.0:
                 risk_score = "Critical High"

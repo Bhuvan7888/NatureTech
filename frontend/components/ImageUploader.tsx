@@ -51,14 +51,27 @@ export default function ImageUploader({
   const [resolvedLocationName, setResolvedLocationName] = useState<string | null>(null);
   const [sentinelDates, setSentinelDates] = useState<{ before: string; after: string } | null>(null);
 
-  const base64ToFile = async (base64String: string, filename: string): Promise<File> => {
-    const res = await fetch(base64String);
-    const blob = await res.blob();
-    return new File([blob], filename, { type: blob.type || 'image/png' });
+  const base64ToFile = (base64String: string, filename: string): File => {
+    try {
+      const parts = base64String.split(';base64,');
+      const contentType = parts[0].replace('data:', '') || 'image/png';
+      const b64Data = parts[1] || parts[0];
+      const raw = window.atob(b64Data);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      const blob = new Blob([uInt8Array], { type: contentType });
+      return new File([blob], filename, { type: contentType });
+    } catch (e) {
+      console.error("base64ToFile conversion error:", e);
+      return new File([new Blob([""])], filename, { type: 'image/png' });
+    }
   };
 
-  const handleSearchLocation = async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearchLocation = async (): Promise<{ lat: number; lon: number } | null> => {
+    if (!searchQuery.trim()) return null;
     setIsSearchingLocation(true);
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/live/geocode?query=${encodeURIComponent(searchQuery)}`);
@@ -67,21 +80,34 @@ export default function ImageUploader({
         setLatitude(data.latitude);
         setLongitude(data.longitude);
         setResolvedLocationName(data.display_name);
+        return { lat: data.latitude, lon: data.longitude };
       }
     } catch (e) {
       console.error('Geocoding search failed:', e);
     } finally {
       setIsSearchingLocation(false);
     }
+    return null;
   };
 
   const handleFetchLiveSentinel = async () => {
     setIsFetchingSentinel(true);
     setSentinelDates(null);
     try {
+      let targetLat = latitude;
+      let targetLon = longitude;
+
+      if (searchQuery.trim()) {
+        const geoRes = await handleSearchLocation();
+        if (geoRes) {
+          targetLat = geoRes.lat;
+          targetLon = geoRes.lon;
+        }
+      }
+
       const fd = new FormData();
-      fd.append('latitude', latitude.toString());
-      fd.append('longitude', longitude.toString());
+      fd.append('latitude', targetLat.toString());
+      fd.append('longitude', targetLon.toString());
 
       const res = await fetch('http://127.0.0.1:8000/api/live/fetch-satellite', {
         method: 'POST',
@@ -90,14 +116,16 @@ export default function ImageUploader({
 
       if (res.ok) {
         const data = await res.json();
-        setBeforePreview(data.before_image);
-        setAfterPreview(data.after_image);
-        setSentinelDates({ before: data.before_date, after: data.after_date });
+        if (data.before_image && data.after_image) {
+          setBeforePreview(data.before_image);
+          setAfterPreview(data.after_image);
+          setSentinelDates({ before: data.before_date, after: data.after_date });
 
-        const fBefore = await base64ToFile(data.before_image, 'sentinel_before.png');
-        const fAfter = await base64ToFile(data.after_image, 'sentinel_after.png');
-        setBeforeFile(fBefore);
-        setAfterFile(fAfter);
+          const fBefore = base64ToFile(data.before_image, 'sentinel_before.png');
+          const fAfter = base64ToFile(data.after_image, 'sentinel_after.png');
+          setBeforeFile(fBefore);
+          setAfterFile(fAfter);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch live Sentinel-2 satellite imagery:', e);
